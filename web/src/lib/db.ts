@@ -129,3 +129,34 @@ export function updateJobTranscript(id: string, transcript: object): void {
     "UPDATE jobs SET status = 'transcribed', transcript = ?, updated_at = ? WHERE id = ?"
   ).run(JSON.stringify(transcript), now, id);
 }
+
+export function insertClips(
+  jobId: string,
+  clips: Array<{
+    id: string;
+    job_id: string;
+    clip_index: number;
+    start_time: number;
+    end_time: number;
+    duration: number;
+    score: number;
+    rationale: string;
+  }>
+): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const stmt = db.prepare(
+    `INSERT INTO clips (id, job_id, clip_index, start_time, end_time, duration, score, caption, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  const insertAll = db.transaction(() => {
+    for (const c of clips) {
+      stmt.run(c.id, c.job_id, c.clip_index, c.start_time, c.end_time, c.duration, c.score, c.rationale, now);
+    }
+    // Mark job as analyzed
+    db.prepare("UPDATE jobs SET status = 'analyzed', updated_at = ? WHERE id = ?").run(now, jobId);
+  });
+
+  insertAll();
+}

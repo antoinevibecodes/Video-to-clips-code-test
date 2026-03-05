@@ -17,6 +17,9 @@ Or just use **Docker** (includes everything).
 | `MAX_VIDEO_DURATION` | `3600` (60 min) | Maximum YouTube video duration in seconds |
 | `OPENAI_API_KEY` | — | **Required** for transcription (Phase 2+) |
 | `WHISPER_MODEL` | `whisper-1` | OpenAI Whisper model to use |
+| `CLIPS_COUNT` | `5` | Number of clips to extract |
+| `CLIP_MIN_DURATION` | `15` | Minimum clip length in seconds |
+| `CLIP_MAX_DURATION` | `60` | Maximum clip length in seconds |
 
 ---
 
@@ -182,6 +185,30 @@ The `transcript` field contains the full Whisper API response (verbose JSON with
 sqlite3 data/db.sqlite "SELECT transcript FROM jobs WHERE id = 'JOB_ID_HERE';" | jq .
 ```
 
+### Check job status (after analysis — Phase 3)
+
+```bash
+# Poll until status reaches "analyzed"
+curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .status
+# → "analyzed"
+```
+
+Verify 5 clip segments were selected:
+
+```bash
+sqlite3 data/db.sqlite \
+  "SELECT clip_index, start_time, end_time, round(end_time-start_time,1) as duration, score FROM clips WHERE job_id='JOB_ID_HERE' ORDER BY clip_index;"
+```
+
+**Expected output:**
+```
+1|12.5|42.3|29.8|72.35
+2|55.0|89.2|34.2|68.10
+3|120.8|165.5|44.7|61.44
+4|200.0|245.1|45.1|58.92
+5|300.4|340.0|39.6|55.20
+```
+
 ### Status transitions
 
 | Status | Meaning |
@@ -190,7 +217,9 @@ sqlite3 data/db.sqlite "SELECT transcript FROM jobs WHERE id = 'JOB_ID_HERE';" |
 | `downloading` | YouTube video being downloaded via yt-dlp |
 | `queued` | Video ingested, starting transcription |
 | `transcribing` | Audio extracted, Whisper API in progress |
-| `transcribed` | Transcript stored, ready for analysis (Phase 3) |
+| `transcribed` | Transcript stored, starting analysis |
+| `analyzing` | Scoring segments, selecting top clips |
+| `analyzed` | 5 clip segments selected, ready for rendering (Phase 4) |
 | `failed` | Something went wrong — check `error` field |
 
 ---

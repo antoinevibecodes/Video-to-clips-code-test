@@ -1,6 +1,7 @@
-import { updateJobStatus } from "./db";
+import { updateJobStatus, getJob } from "./db";
 import { downloadYoutube } from "./pipeline/ingest";
 import { transcribe } from "./pipeline/transcribe";
+import { analyze } from "./pipeline/analyze";
 
 interface QueueItem {
   jobId: string;
@@ -38,6 +39,12 @@ async function processNext(): Promise<void> {
 
     // Phase 2: transcribe (sets status transcribing → transcribed)
     await transcribe(item.jobId, videoPath);
+
+    // Phase 3: analyze transcript → select clip segments (analyzing → analyzed)
+    const job = getJob(item.jobId);
+    if (job?.transcript) {
+      await analyze(item.jobId, job.transcript);
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     updateJobStatus(item.jobId, "failed", { error: message });
