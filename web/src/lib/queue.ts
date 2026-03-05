@@ -2,6 +2,7 @@ import { updateJobStatus, getJob } from "./db";
 import { downloadYoutube } from "./pipeline/ingest";
 import { transcribe } from "./pipeline/transcribe";
 import { analyze } from "./pipeline/analyze";
+import { render } from "./pipeline/render";
 
 interface QueueItem {
   jobId: string;
@@ -45,6 +46,9 @@ async function processNext(): Promise<void> {
     if (job?.transcript) {
       await analyze(item.jobId, job.transcript);
     }
+
+    // Phase 4: render clips with ffmpeg (rendering → completed)
+    await render(item.jobId);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     updateJobStatus(item.jobId, "failed", { error: message });

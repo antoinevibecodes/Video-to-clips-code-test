@@ -160,3 +160,37 @@ export function insertClips(
 
   insertAll();
 }
+
+export interface Clip {
+  id: string;
+  job_id: string;
+  clip_index: number;
+  start_time: number;
+  end_time: number;
+  duration: number;
+  title: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  clip_path: string | null;
+  subtitle_path: string | null;
+  score: number | null;
+  created_at: string;
+}
+
+export function getClipsByJobId(jobId: string): Clip[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM clips WHERE job_id = ? ORDER BY clip_index")
+    .all(jobId) as Clip[];
+}
+
+export function updateClipPaths(
+  clipId: string,
+  clipPath: string,
+  subtitlePath: string | null
+): void {
+  const db = getDb();
+  db.prepare(
+    "UPDATE clips SET clip_path = ?, subtitle_path = ? WHERE id = ?"
+  ).run(clipPath, subtitlePath, clipId);
+}

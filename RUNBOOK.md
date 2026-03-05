@@ -209,6 +209,59 @@ sqlite3 data/db.sqlite \
 5|300.4|340.0|39.6|55.20
 ```
 
+### Full pipeline — completed job (Phase 4)
+
+```bash
+# 1. Create job
+JOB_ID=$(curl -s -X POST http://localhost:3000/api/jobs -F "file=@video.mp4" | jq -r .id)
+
+# 2. Poll until completed
+while true; do
+  STATUS=$(curl -s http://localhost:3000/api/jobs/$JOB_ID | jq -r .status)
+  echo "Status: $STATUS"
+  [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] && break
+  sleep 3
+done
+
+# 3. Get results with clip URLs
+curl -s http://localhost:3000/api/jobs/$JOB_ID | jq .
+```
+
+**Expected response (200) — completed job:**
+```json
+{
+  "id": "a1b2c3d4-...",
+  "status": "completed",
+  "source_type": "upload",
+  "original_filename": "video.mp4",
+  "video_path": "data/uploads/a1b2c3d4-....mp4",
+  "error": null,
+  "clips": [
+    {
+      "clip_index": 1,
+      "start_time": 12.5,
+      "end_time": 42.3,
+      "duration": 29.8,
+      "score": 72.35,
+      "clip_url": "http://localhost:3000/api/clips/a1b2c3d4-.../clip-1.mp4",
+      "subtitle_url": "http://localhost:3000/api/clips/a1b2c3d4-.../clip-1.srt"
+    }
+  ]
+}
+```
+
+**Download a clip:**
+```bash
+curl -o clip-1.mp4 http://localhost:3000/api/clips/$JOB_ID/clip-1.mp4
+curl -o clip-1.srt http://localhost:3000/api/clips/$JOB_ID/clip-1.srt
+```
+
+**Verify clip files on disk:**
+```bash
+ls -la data/clips/$JOB_ID/
+# → clip-1.mp4  clip-1.srt  clip-2.mp4  clip-2.srt  ...
+```
+
 ### Status transitions
 
 | Status | Meaning |
@@ -219,7 +272,9 @@ sqlite3 data/db.sqlite \
 | `transcribing` | Audio extracted, Whisper API in progress |
 | `transcribed` | Transcript stored, starting analysis |
 | `analyzing` | Scoring segments, selecting top clips |
-| `analyzed` | 5 clip segments selected, ready for rendering (Phase 4) |
+| `analyzed` | 5 clip segments selected, starting rendering |
+| `rendering` | Cutting clips with ffmpeg |
+| `completed` | All clips rendered and ready to download |
 | `failed` | Something went wrong — check `error` field |
 
 ---

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob } from "@/lib/db";
+import { getJob, getClipsByJobId } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/jobs/[id]
  *
- * Returns the current status of a job.
+ * Returns job status. When completed, includes clips with download URLs.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   const job = getJob(params.id);
@@ -18,7 +18,9 @@ export async function GET(
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
+  const baseUrl = new URL(request.url).origin;
+
+  const response: Record<string, unknown> = {
     id: job.id,
     status: job.status,
     source_type: job.source_type,
@@ -28,5 +30,25 @@ export async function GET(
     error: job.error,
     created_at: job.created_at,
     updated_at: job.updated_at,
-  });
+  };
+
+  // Include clips once they exist (analyzed or completed)
+  if (["analyzed", "rendering", "completed"].includes(job.status)) {
+    const clips = getClipsByJobId(job.id);
+    response.clips = clips.map((c) => ({
+      clip_index: c.clip_index,
+      start_time: c.start_time,
+      end_time: c.end_time,
+      duration: c.duration,
+      score: c.score,
+      clip_url: c.clip_path
+        ? `${baseUrl}/api/clips/${job.id}/clip-${c.clip_index}.mp4`
+        : null,
+      subtitle_url: c.subtitle_path
+        ? `${baseUrl}/api/clips/${job.id}/clip-${c.clip_index}.srt`
+        : null,
+    }));
+  }
+
+  return NextResponse.json(response);
 }
