@@ -1,12 +1,17 @@
 import { execFile } from "child_process";
 import path from "path";
-import fs from "fs";
 import { updateJobStatus } from "../db";
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "..", "data", "uploads");
 
+const MAX_VIDEO_DURATION = parseInt(
+  process.env.MAX_VIDEO_DURATION || "3600",
+  10
+);
+
 /**
  * Download a YouTube video using yt-dlp into data/uploads/{jobId}.mp4
+ * Rejects videos longer than MAX_VIDEO_DURATION seconds.
  */
 export async function downloadYoutube(
   jobId: string,
@@ -20,6 +25,8 @@ export async function downloadYoutube(
     execFile(
       "yt-dlp",
       [
+        "--match-filter",
+        `duration <= ${MAX_VIDEO_DURATION}`,
         "-f",
         "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "--merge-output-format",
@@ -32,25 +39,20 @@ export async function downloadYoutube(
       { timeout: 600_000 },
       (error, _stdout, stderr) => {
         if (error) {
-          reject(new Error(`yt-dlp failed: ${stderr || error.message}`));
+          const msg = stderr || error.message;
+          if (msg.includes("does not pass filter")) {
+            reject(
+              new Error(
+                `Video exceeds maximum duration of ${MAX_VIDEO_DURATION} seconds`
+              )
+            );
+          } else {
+            reject(new Error(`yt-dlp failed: ${msg}`));
+          }
           return;
         }
         resolve(outputPath);
       }
     );
   });
-}
-
-/**
- * Save an uploaded file buffer to data/uploads/{jobId}.{ext}
- */
-export function saveUploadedFile(
-  jobId: string,
-  buffer: Buffer,
-  originalFilename: string
-): string {
-  const ext = path.extname(originalFilename) || ".mp4";
-  const outputPath = path.join(UPLOADS_DIR, `${jobId}${ext}`);
-  fs.writeFileSync(outputPath, buffer);
-  return outputPath;
 }

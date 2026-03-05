@@ -1,12 +1,11 @@
 import { updateJobStatus } from "./db";
-import { downloadYoutube, saveUploadedFile } from "./pipeline/ingest";
+import { downloadYoutube } from "./pipeline/ingest";
 
 interface QueueItem {
   jobId: string;
   type: "upload" | "youtube";
   url?: string;
-  fileBuffer?: Buffer;
-  originalFilename?: string;
+  videoPath?: string;
 }
 
 const queue: QueueItem[] = [];
@@ -30,12 +29,8 @@ async function processNext(): Promise<void> {
       // downloadYoutube sets status to "downloading" internally
       videoPath = await downloadYoutube(item.jobId, item.url!);
     } else {
-      updateJobStatus(item.jobId, "downloading");
-      videoPath = saveUploadedFile(
-        item.jobId,
-        item.fileBuffer!,
-        item.originalFilename!
-      );
+      // File already written to disk by the API route
+      videoPath = item.videoPath!;
     }
 
     // Phase 1 stops here — mark as "queued" (ready for transcription in Phase 3)

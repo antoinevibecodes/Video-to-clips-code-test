@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Busboy from "busboy";
 import { Readable } from "stream";
+import fs from "fs";
+import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { createJob } from "@/lib/db";
 import { enqueue } from "@/lib/queue";
@@ -9,6 +11,13 @@ export const runtime = "nodejs";
 
 // Disable Next.js body parsing so we can handle multipart ourselves
 export const dynamic = "force-dynamic";
+
+const MAX_UPLOAD_BYTES = parseInt(
+  process.env.MAX_UPLOAD_BYTES || String(1024 * 1024 * 1024),
+  10
+); // default 1 GB
+
+const UPLOADS_DIR = path.resolve(process.cwd(), "..", "data", "uploads");
 
 function isValidYoutubeUrl(url: string): boolean {
   try {
@@ -64,22 +73,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Multipart form-data (file upload) ──
   if (contentType.includes("multipart/form-data")) {
     return new Promise<NextResponse>((resolve) => {
-      const busboy = Busboy({ headers: { "content-type": contentType } });
-
-      let fileBuffer: Buffer | null = null;
+      const jobId = uuidv4();
       let originalFilename = "upload.mp4";
-      const chunks: Buffer[] = [];
+      let fileReceived = false;
+      let limitExceeded = false;
+      let videoPath = "";
+
+      const busboy = Busboy({
+        headers: { "content-type": contentType },
+        limits: { fileSize: MAX_UPLOAD_BYTES },
+      });
 
       busboy.on("file", (_fieldname, stream, info) => {
+        fileReceived = true;
         originalFilename = info.filename || originalFilename;
-        stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-        stream.on("end", () => {
-          fileBuffer = Buffer.concat(chunks);
+        const ext = path.extname(originalFilename) || ".mp4";
+        videoPath = path.join(UPLOADS_DIR, `${jobId}${ext}`);
+
+        const writeStream = fs.createWriteStream(videoPath);
+        stream.pipe(writeStream);
+
+        stream.on("limit", () => {
+          limitExceeded = true;
+          stream.unpipe(writeStream);
+          writeStream.destroy();
+          // Clean up partial file
+          try { fs.unlinkSync(videoPath); } catch {}
         });
       });
 
       busboy.on("finish", () => {
-        if (!fileBuffer || fileBuffer.length === 0) {
+        if (limitExceeded) {
+          resolve(
+            NextResponse.json(
+              {
+                error: `File exceeds maximum upload size of ${MAX_UPLOAD_BYTES} bytes`,
+              },
+              { status: 413 }
+            )
+          );
+          return;
+        }
+
+        if (!fileReceived) {
           resolve(
             NextResponse.json(
               { error: "No file uploaded" },
@@ -89,24 +125,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           return;
         }
 
-        const jobId = uuidv4();
         const job = createJob({
           id: jobId,
           source_type: "upload",
           original_filename: originalFilename,
         });
 
-        enqueue({
-          jobId,
-          type: "upload",
-          fileBuffer,
-          originalFilename,
-        });
+        enqueue({ jobId, type: "upload", videoPath });
 
         resolve(NextResponse.json(job, { status: 201 }));
       });
 
       busboy.on("error", (err: Error) => {
+        // Clean up partial file on error
+        if (videoPath) {
+          try { fs.unlinkSync(videoPath); } catch {}
+        }
         resolve(
           NextResponse.json(
             { error: `Upload failed: ${err.message}` },

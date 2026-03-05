@@ -9,6 +9,14 @@
 
 Or just use **Docker** (includes everything).
 
+## Environment Variables (optional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `MAX_UPLOAD_BYTES` | `1073741824` (1 GB) | Maximum file upload size in bytes |
+| `MAX_VIDEO_DURATION` | `3600` (60 min) | Maximum YouTube video duration in seconds |
+| `OPENAI_API_KEY` | — | Required for Phase 3 (transcription) |
+
 ---
 
 ## Local Development (without Docker)
@@ -86,13 +94,34 @@ curl -s -X POST http://localhost:3000/api/jobs \
 }
 ```
 
-### Check job status
+### Check job status (upload — after processing)
 
 ```bash
 curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
 ```
 
-**Expected response (200):**
+**Expected response (200) — upload job, completed ingest:**
+```json
+{
+  "id": "e5f6g7h8-...",
+  "status": "queued",
+  "source_type": "upload",
+  "source_url": null,
+  "original_filename": "video.mp4",
+  "video_path": "data/uploads/e5f6g7h8-....mp4",
+  "error": null,
+  "created_at": "2026-03-05T12:00:00.000Z",
+  "updated_at": "2026-03-05T12:00:00.100Z"
+}
+```
+
+### Check job status (YouTube — after download)
+
+```bash
+curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
+```
+
+**Expected response (200) — YouTube job, completed download:**
 ```json
 {
   "id": "a1b2c3d4-...",
@@ -100,10 +129,27 @@ curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
   "source_type": "youtube",
   "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "original_filename": null,
-  "video_path": "/app/data/uploads/a1b2c3d4-....mp4",
+  "video_path": "data/uploads/a1b2c3d4-....mp4",
   "error": null,
   "created_at": "2026-03-05T12:00:00.000Z",
   "updated_at": "2026-03-05T12:00:05.000Z"
+}
+```
+
+### Check job status (failed — duration exceeded)
+
+**Expected response (200) — YouTube video too long:**
+```json
+{
+  "id": "x9y0z1-...",
+  "status": "failed",
+  "source_type": "youtube",
+  "source_url": "https://www.youtube.com/watch?v=LONG_VIDEO",
+  "original_filename": null,
+  "video_path": null,
+  "error": "Video exceeds maximum duration of 3600 seconds",
+  "created_at": "2026-03-05T12:00:00.000Z",
+  "updated_at": "2026-03-05T12:00:02.000Z"
 }
 ```
 
@@ -112,7 +158,7 @@ curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
 | Status | Meaning |
 |---|---|
 | `pending` | Job created, waiting in queue |
-| `downloading` | Video being downloaded (YouTube) or saved (upload) |
+| `downloading` | YouTube video being downloaded via yt-dlp |
 | `queued` | Video ingested, ready for transcription (Phase 3) |
 | `failed` | Something went wrong — check `error` field |
 
