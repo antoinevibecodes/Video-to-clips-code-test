@@ -49,7 +49,18 @@ docker-compose up --build
 
 ---
 
-## API Usage (Phase 1)
+## Browser Usage
+
+1. Open **http://localhost:3000**
+2. Choose **Upload File** or **YouTube URL**
+3. Click **Extract Clips** — you'll be redirected to the job status page
+4. Watch the progress bar as the pipeline runs (auto-polls every 1.5s)
+5. When complete, preview each clip inline with the HTML5 video player
+6. Download MP4 and SRT files via the links below each clip
+
+---
+
+## API Usage
 
 ### Create a job from a YouTube URL
 
