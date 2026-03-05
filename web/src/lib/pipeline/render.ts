@@ -4,6 +4,7 @@ import path from "path";
 import { updateJobStatus, getClipsByJobId, updateClipPaths, getJob } from "../db";
 
 const CLIPS_DIR = path.resolve(process.cwd(), "..", "data", "clips");
+fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
 interface WhisperSegment {
   start: number;

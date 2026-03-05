@@ -18,6 +18,7 @@ const MAX_UPLOAD_BYTES = parseInt(
 ); // default 1 GB
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "..", "data", "uploads");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 function isValidYoutubeUrl(url: string): boolean {
   try {

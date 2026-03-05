@@ -1,8 +1,10 @@
 import { execFile } from "child_process";
+import fs from "fs";
 import path from "path";
 import { updateJobStatus } from "../db";
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "..", "data", "uploads");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const MAX_VIDEO_DURATION = parseInt(
   process.env.MAX_VIDEO_DURATION || "3600",
