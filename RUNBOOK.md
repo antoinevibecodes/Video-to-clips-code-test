@@ -15,7 +15,8 @@ Or just use **Docker** (includes everything).
 |---|---|---|
 | `MAX_UPLOAD_BYTES` | `1073741824` (1 GB) | Maximum file upload size in bytes |
 | `MAX_VIDEO_DURATION` | `3600` (60 min) | Maximum YouTube video duration in seconds |
-| `OPENAI_API_KEY` | — | Required for Phase 3 (transcription) |
+| `OPENAI_API_KEY` | — | **Required** for transcription (Phase 2+) |
+| `WHISPER_MODEL` | `whisper-1` | OpenAI Whisper model to use |
 
 ---
 
@@ -153,13 +154,43 @@ curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
 }
 ```
 
-### Status transitions (Phase 1)
+### Check job status (after transcription — Phase 2)
+
+```bash
+# Poll until status reaches "transcribed"
+curl -s http://localhost:3000/api/jobs/JOB_ID_HERE | jq .
+```
+
+**Expected response (200) — transcription complete:**
+```json
+{
+  "id": "a1b2c3d4-...",
+  "status": "transcribed",
+  "source_type": "upload",
+  "source_url": null,
+  "original_filename": "video.mp4",
+  "video_path": "data/uploads/a1b2c3d4-....mp4",
+  "error": null,
+  "created_at": "2026-03-05T12:00:00.000Z",
+  "updated_at": "2026-03-05T12:00:10.000Z"
+}
+```
+
+The `transcript` field contains the full Whisper API response (verbose JSON with segment-level timestamps). Retrieve it via the API or query SQLite directly:
+
+```bash
+sqlite3 data/db.sqlite "SELECT transcript FROM jobs WHERE id = 'JOB_ID_HERE';" | jq .
+```
+
+### Status transitions
 
 | Status | Meaning |
 |---|---|
 | `pending` | Job created, waiting in queue |
 | `downloading` | YouTube video being downloaded via yt-dlp |
-| `queued` | Video ingested, ready for transcription (Phase 3) |
+| `queued` | Video ingested, starting transcription |
+| `transcribing` | Audio extracted, Whisper API in progress |
+| `transcribed` | Transcript stored, ready for analysis (Phase 3) |
 | `failed` | Something went wrong — check `error` field |
 
 ---

@@ -121,3 +121,11 @@ export function updateJobStatus(
     );
   }
 }
+
+export function updateJobTranscript(id: string, transcript: object): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    "UPDATE jobs SET status = 'transcribed', transcript = ?, updated_at = ? WHERE id = ?"
+  ).run(JSON.stringify(transcript), now, id);
+}
