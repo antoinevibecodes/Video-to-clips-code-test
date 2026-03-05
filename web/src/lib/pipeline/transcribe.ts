@@ -15,6 +15,15 @@ export async function transcribe(
 ): Promise<void> {
   updateJobStatus(jobId, "transcribing");
 
+  // Verify video file exists before attempting extraction
+  if (!fs.existsSync(videoPath)) {
+    throw new Error(`Video file not found at: ${videoPath}. Directory contents: ${
+      fs.existsSync(path.dirname(videoPath))
+        ? fs.readdirSync(path.dirname(videoPath)).join(", ")
+        : "directory does not exist"
+    }`);
+  }
+
   const audioPath = videoPath.replace(/\.[^.]+$/, ".wav");
 
   // 1. Extract audio with ffmpeg

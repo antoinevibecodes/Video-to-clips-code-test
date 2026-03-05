@@ -21,7 +21,9 @@ export async function downloadYoutube(
 ): Promise<string> {
   updateJobStatus(jobId, "downloading");
 
-  const outputPath = path.join(UPLOADS_DIR, `${jobId}.mp4`);
+  // Use yt-dlp output template — %(ext)s lets yt-dlp choose the real extension
+  const outputTemplate = path.join(UPLOADS_DIR, `${jobId}.%(ext)s`);
+  const expectedPath = path.join(UPLOADS_DIR, `${jobId}.mp4`);
 
   return new Promise((resolve, reject) => {
     execFile(
@@ -30,16 +32,17 @@ export async function downloadYoutube(
         "--match-filter",
         `duration <= ${MAX_VIDEO_DURATION}`,
         "-f",
-        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--merge-output-format",
         "mp4",
         "-o",
-        outputPath,
+        outputTemplate,
         "--no-playlist",
+        "--verbose",
         url,
       ],
       { timeout: 600_000 },
-      (error, _stdout, stderr) => {
+      (error, stdout, stderr) => {
         if (error) {
           const msg = stderr || error.message;
           if (msg.includes("does not pass filter")) {
@@ -53,7 +56,29 @@ export async function downloadYoutube(
           }
           return;
         }
-        resolve(outputPath);
+
+        // Log output for debugging
+        console.log("[yt-dlp stdout]", stdout);
+        if (stderr) console.log("[yt-dlp stderr]", stderr);
+
+        // Check if the expected file exists
+        if (fs.existsSync(expectedPath)) {
+          resolve(expectedPath);
+          return;
+        }
+
+        // yt-dlp may have saved with a different extension — find it
+        const files = fs.readdirSync(UPLOADS_DIR).filter(f => f.startsWith(jobId));
+        console.log("[yt-dlp] Files matching jobId:", files);
+
+        if (files.length > 0) {
+          const actualPath = path.join(UPLOADS_DIR, files[0]);
+          resolve(actualPath);
+        } else {
+          reject(new Error(
+            `yt-dlp completed but no file was created. stdout: ${stdout}, stderr: ${stderr}`
+          ));
+        }
       }
     );
   });
