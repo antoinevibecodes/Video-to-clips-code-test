@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app/web
+      - ./data:/app/data
+      - /app/web/node_modules   # anonymous volume to preserve container node_modules
+    environment:
+      - NODE_ENV=development

@@ -1,0 +1,25 @@
+# Dependencies
+web/node_modules/
+web/.next/
+
+# Runtime data
+data/uploads/
+data/clips/
+data/db.sqlite
+data/db.sqlite-wal
+data/db.sqlite-shm
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
