@@ -9,6 +9,9 @@ interface Clip {
   end_time: number;
   duration: number;
   score: number | null;
+  title: string | null;
+  caption: string | null;
+  hashtags: string[] | null;
   clip_url: string | null;
   subtitle_url: string | null;
 }
@@ -32,6 +35,7 @@ const STATUS_LABELS: Record<string, string> = {
   analyzing: "Analyzing transcript, selecting best segments...",
   analyzed: "Segments selected, rendering clips...",
   rendering: "Cutting clips with ffmpeg...",
+  generating_metadata: "Generating titles and hashtags...",
   completed: "Done! Your clips are ready.",
   failed: "Job failed.",
 };
@@ -45,6 +49,7 @@ const STATUS_ORDER = [
   "analyzing",
   "analyzed",
   "rendering",
+  "generating_metadata",
   "completed",
 ];
 

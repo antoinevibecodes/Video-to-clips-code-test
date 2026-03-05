@@ -3,6 +3,7 @@ import { downloadYoutube } from "./pipeline/ingest";
 import { transcribe } from "./pipeline/transcribe";
 import { analyze } from "./pipeline/analyze";
 import { render } from "./pipeline/render";
+import { generateMetadata } from "./pipeline/metadata";
 
 interface QueueItem {
   jobId: string;
@@ -47,8 +48,11 @@ async function processNext(): Promise<void> {
       await analyze(item.jobId, job.transcript);
     }
 
-    // Phase 4: render clips with ffmpeg (rendering → completed)
+    // Phase 4: render clips with ffmpeg (rendering)
     await render(item.jobId);
+
+    // Phase 6: generate metadata (generating_metadata → completed)
+    await generateMetadata(item.jobId);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     updateJobStatus(item.jobId, "failed", { error: message });

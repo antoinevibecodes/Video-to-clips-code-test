@@ -20,6 +20,10 @@ Or just use **Docker** (includes everything).
 | `CLIPS_COUNT` | `5` | Number of clips to extract |
 | `CLIP_MIN_DURATION` | `15` | Minimum clip length in seconds |
 | `CLIP_MAX_DURATION` | `60` | Maximum clip length in seconds |
+| `METADATA_MODE` | `heuristic` | Metadata generation: `heuristic` (free) or `llm` (uses OpenAI) |
+| `METADATA_MODEL` | `gpt-4o-mini` | LLM model for metadata (only if `METADATA_MODE=llm`) |
+| `METADATA_MAX_TOKENS` | `300` | Max tokens per LLM metadata call |
+| `METADATA_TEMPERATURE` | `0.7` | LLM temperature for metadata generation |
 
 ---
 
@@ -285,7 +289,8 @@ ls -la data/clips/$JOB_ID/
 | `analyzing` | Scoring segments, selecting top clips |
 | `analyzed` | 5 clip segments selected, starting rendering |
 | `rendering` | Cutting clips with ffmpeg |
-| `completed` | All clips rendered and ready to download |
+| `generating_metadata` | Generating titles, captions, and hashtags |
+| `completed` | All clips rendered with metadata, ready to download |
 | `failed` | Something went wrong — check `error` field |
 
 ---

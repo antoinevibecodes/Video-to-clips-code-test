@@ -33,7 +33,7 @@ export async function GET(
   };
 
   // Include clips once they exist (analyzed or completed)
-  if (["analyzed", "rendering", "completed"].includes(job.status)) {
+  if (["analyzed", "rendering", "generating_metadata", "completed"].includes(job.status)) {
     const clips = getClipsByJobId(job.id);
     response.clips = clips.map((c) => ({
       clip_index: c.clip_index,
@@ -41,6 +41,9 @@ export async function GET(
       end_time: c.end_time,
       duration: c.duration,
       score: c.score,
+      title: c.title,
+      caption: c.caption,
+      hashtags: c.hashtags ? JSON.parse(c.hashtags) : null,
       clip_url: c.clip_path
         ? `${baseUrl}/api/clips/${job.id}/clip-${c.clip_index}.mp4`
         : null,

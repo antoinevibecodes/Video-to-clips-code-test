@@ -13,7 +13,7 @@ interface WhisperSegment {
 
 /**
  * Cut 5 MP4 clips with ffmpeg and generate SRT subtitles.
- * Sets status: rendering → completed.
+ * Sets status to rendering. Completed status set by metadata step.
  */
 export async function render(jobId: string): Promise<void> {
   updateJobStatus(jobId, "rendering");
@@ -59,7 +59,7 @@ export async function render(jobId: string): Promise<void> {
     }
   }
 
-  updateJobStatus(jobId, "completed");
+  // Status "completed" is now set by metadata step
 }
 
 function cutClip(

@@ -194,3 +194,15 @@ export function updateClipPaths(
     "UPDATE clips SET clip_path = ?, subtitle_path = ? WHERE id = ?"
   ).run(clipPath, subtitlePath, clipId);
 }
+
+export function updateClipMetadata(
+  clipId: string,
+  title: string,
+  caption: string,
+  hashtags: string
+): void {
+  const db = getDb();
+  db.prepare(
+    "UPDATE clips SET title = ?, caption = ?, hashtags = ? WHERE id = ?"
+  ).run(title, caption, hashtags, clipId);
+}
